@@ -11,6 +11,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,10 +32,11 @@ public class PhoneCatalog {
     private static final String DB_URL = "jdbc:mysql://localhost:3306/phonecatalog?autoReconnect=true&useSSL=false";
     private static final String USER = "root";
     private static final String PASS = "chris";
+    private static Connection conn = null;
     
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ParseException {
         
-       Connection conn = null;
+     //  Connection conn = null;
        Statement stmt = null; 
        ResultSet rs = null; 
        
@@ -61,7 +70,7 @@ public class PhoneCatalog {
                    "('petros','anastopoylos', '690284871')," +
                    "('giannhs','stamatakhs', '6919888262')";
             
-          //  stmt.executeUpdate(sql);
+        //  stmt.executeUpdate(sql);
           
           Scanner input = new Scanner(System.in);
           System.out.println("Give your First Name");
@@ -74,13 +83,16 @@ public class PhoneCatalog {
           pstmt.setString(2, lastN);
           rs = pstmt.executeQuery();
           
-          if(rs.first()){
+          boolean flag = true;
+          
+          while(rs.next()){
               System.out.println("Your first name is:" + firstN);
               System.out.println("Your last name is:" + lastN);
               String phone = rs.getString("phone");
-              System.out.println("Your Phone is:" + phone);    
+              System.out.println("Your Phone is:" + phone);
+              flag = false;
           }
-          else
+          if(flag)
               System.out.println("Record with given first name and last name doesnt exist");
           
           System.out.println("Give your last Name");
@@ -106,9 +118,15 @@ public class PhoneCatalog {
               System.out.println("The total rows are: " + count);
           }
           
-            rs.close();
-            stmt.close();
-            conn.close(); 
+          PhoneCatalog.CreateTable();
+          PhoneCatalog.populateBirthday();        
+          PhoneCatalog.showSameBirthDay();
+          
+          rs.close();
+          stmt.close();
+          conn.close(); 
+            
+            
             
         } catch (ClassNotFoundException | SQLException ex) {
             Logger.getLogger(PhoneCatalog.class.getName()).log(Level.SEVERE, null, ex);
@@ -132,5 +150,97 @@ public class PhoneCatalog {
        System.out.println("Finished!");
        
     }
+    
+    public static void CreateTable(){
+        
+        Statement stmt;
+        try {
+            stmt = conn.createStatement();
+            String sql1 = "DROP TABLE IF EXISTS birthdays";
+            String sql2 = "CREATE TABLE birthdays(" +
+                      " br_id int(10) NOT NULL AUTO_INCREMENT," +
+                      "	member_id int(10) NOT NULL," +
+                      " birthday date NOT NULL," +
+                      " PRIMARY KEY (br_id)," +
+                      " FOREIGN KEY (member_id) REFERENCES members (ID)" +
+                      ")";
+            
+            stmt.executeUpdate(sql1);
+            stmt.executeUpdate(sql2);
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(PhoneCatalog.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+    }
+    
+    public static void populateBirthday() throws ParseException{
+        
+        boolean flag = true;
+        Statement stmt;
+        PreparedStatement pstmt;
+        Scanner input = new Scanner(System.in);
+        DateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+        Date date;
+        
+        try {
+            stmt = conn.createStatement();
+            pstmt = conn.prepareStatement("INSERT INTO birthdays (member_id, birthday) VALUES (? , ?)");           
+            String sql = "SELECT ID, Fname, Lname From members";            
+            ResultSet rs = stmt.executeQuery(sql);
+            while(rs.next()){
+                int id = rs.getInt("ID");
+                String firstname = rs.getString("Fname");
+                String lastname = rs.getString("Lname");
+                  
+                System.out.println(firstname+ " " + lastname + " ,pls give birthday in exact format yyyy-MM-dd");
+                String birthD = input.nextLine();
+                
+                while(flag){
+                    try {
+                        date = format.parse(birthD);
+                        flag = false;
+                    } catch (ParseException e){
+                        System.out.println(firstname+ " " + lastname + " ,pls give birthday in exact format yyyy-MM-dd");
+                        birthD = input.nextLine();
+                    }   
+                }
+                
+                pstmt.setInt(1, id);
+                pstmt.setString(2, birthD);
+                pstmt.executeUpdate();                
+            }         
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(PhoneCatalog.class.getName()).log(Level.SEVERE, null, ex);
+        }
+                 
+    }
+    
+    public static void showSameBirthDay(){
+        
+       PreparedStatement pstmt;
+       Scanner input = new Scanner(System.in);
+       ResultSet rs;
+        try {
+            pstmt = conn.prepareStatement("SELECT Fname, Lname FROM members, birthdays WHERE birthday = ? AND member_id = id");
+            System.out.println("Give birthday to list members:");
+            String birthD = input.nextLine();
+            pstmt.setString(1, birthD);
+            rs = pstmt.executeQuery();
+            
+            while(rs.next()){
+                String firstname = rs.getString("Fname");
+                String lastname = rs.getString("Lname");
+               
+                System.out.print(firstname + " " + lastname + "\n");
+            }
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(PhoneCatalog.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+    }
+            
         
 }
