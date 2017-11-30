@@ -4,7 +4,7 @@ CREATE TABLE PhoneCatalog.members(
     ID int(10) NOT NULL AUTO_INCREMENT,
     Fname varchar(15) NOT NULL,
 	Lname varchar(15) NOT NULL,
-	phone int(15), 
+	phone Varchar(15), 
     PRIMARY KEY (ID)
 );
 
